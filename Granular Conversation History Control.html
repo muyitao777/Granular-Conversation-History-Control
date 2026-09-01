@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Agent Consent Flow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&family=Lato:wght@400;700;900&display=swap">
+<style>
+  :root{
+    --ground:#F2F5F7; --surface:#FFFFFF; --ink:#1B2430; --muted:#5D6C7B;
+    --line:#CBD5DE; --lane:#E9EEF3;
+    --accent:#0E7A70; --accent-ink:#0B5F58; --accent-soft:#E1F0EE;
+    --warn:#A6651B; --warn-soft:#F7EDDC;
+    --btn-ghost:#EDF1F4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#12181E; --surface:#1C242C; --ink:#E6EBEF; --muted:#95A2AF;
+      --line:#3A444F; --lane:#171E25;
+      --accent:#45BDB1; --accent-ink:#6FD2C8; --accent-soft:#12332F;
+      --warn:#D9964A; --warn-soft:#372A16;
+      --btn-ghost:#26303A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#12181E; --surface:#1C242C; --ink:#E6EBEF; --muted:#95A2AF;
+    --line:#3A444F; --lane:#171E25;
+    --accent:#45BDB1; --accent-ink:#6FD2C8; --accent-soft:#12332F;
+    --warn:#D9964A; --warn-soft:#372A16;
+    --btn-ghost:#26303A;
+  }
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:"Spline Sans",system-ui,-apple-system,sans-serif;
+    font-size:15px; line-height:1.55; margin:0;
+  }
+  .mono{font-family:"Spline Sans Mono",ui-monospace,SFMono-Regular,monospace}
+  .wrap{max-width:1120px; margin:0 auto; padding:44px 28px 72px}
+  .eyebrow{font-family:"Spline Sans Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-ink); margin:0 0 10px}
+  h1{font-size:31px; font-weight:600; letter-spacing:-.015em; margin:0 0 8px; text-wrap:balance}
+  .lede{color:var(--muted); max-width:62ch; margin:0 0 34px}
+  h2{font-size:18px; font-weight:600; letter-spacing:-.01em; margin:44px 0 6px}
+  .sub{color:var(--muted); font-size:13.5px; margin:0 0 16px; max-width:66ch}
+
+  figure{margin:0}
+  .diagram{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 10px 8px; overflow-x:auto}
+  .diagram svg{display:block; min-width:1000px; width:100%; height:auto; color:var(--ink)}
+  figcaption{font-size:13px; color:var(--muted); margin:10px 4px 0; max-width:78ch}
+
+  svg .lane-band{fill:var(--lane)}
+  svg .lane-line{stroke:var(--line); stroke-width:1}
+  svg .lane-name{font-family:"Spline Sans Mono",monospace; font-size:10.5px; letter-spacing:.12em; fill:var(--muted)}
+  svg .node{fill:var(--surface); stroke:var(--line); stroke-width:1.25}
+  svg .node-key{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.5}
+  svg .t{font-size:13px; font-weight:600; fill:var(--ink)}
+  svg .s{font-size:11.5px; fill:var(--muted)}
+  svg .sm{font-family:"Spline Sans Mono",monospace; font-size:11px; fill:var(--muted)}
+  svg .el{font-family:"Spline Sans Mono",monospace; font-size:10.5px; fill:var(--muted)}
+  svg .ela{font-family:"Spline Sans Mono",monospace; font-size:10.5px; fill:var(--accent-ink); font-weight:500}
+  svg .edge{stroke:var(--muted); stroke-width:1.5; fill:none}
+  svg .edge-a{stroke:var(--accent); stroke-width:1.7; fill:none}
+  svg .edge-d{stroke:var(--muted); stroke-width:1.5; fill:none; stroke-dasharray:5 4}
+  svg .node-cfg{fill:var(--surface); stroke:var(--muted); stroke-width:1.25; stroke-dasharray:5 4}
+  svg .opt{font-family:"Spline Sans Mono",monospace; font-size:10px; letter-spacing:.08em; fill:var(--accent-ink)}
+  svg .badge{fill:var(--accent)}
+  svg .badge-n{font-family:"Spline Sans Mono",monospace; font-size:11px; font-weight:500; fill:var(--surface)}
+
+  /* platform mocks — deliberately light-locked, like screenshots of each product */
+  .platforms{display:flex; flex-direction:column; gap:30px}
+  .platwrap{padding-right:210px}
+  @media (max-width:760px){.platwrap{padding-right:0} .anno{display:none}}
+  .plat{border:1px solid var(--line); border-radius:12px; max-width:640px}
+  .plat-h{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--line); border-radius:11px 11px 0 0}
+  .slack,.teams{border-radius:0 0 11px 11px}
+  .plat-h .pname{font-size:13.5px; font-weight:600}
+  .plat-h .pkit{font-family:"Spline Sans Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent-ink)}
+  .blk{position:relative}
+  .anno{position:absolute; left:calc(100% + 34px); top:2px; font-family:"Spline Sans Mono",ui-monospace,monospace; font-size:9.5px; color:var(--muted); background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:2px 7px; white-space:nowrap}
+  .anno::before{content:""; position:absolute; left:-24px; top:50%; width:20px; border-top:1px dashed var(--line)}
+  .s-modal .anno{left:calc(100% + 50px)}
+  .s-modal .anno::before{left:-40px; width:36px}
+  .teams .anno{left:calc(100% + 54px)}
+  .teams .anno::before{left:-44px; width:40px}
+  .strike{text-decoration:line-through; color:#8A8A8A}
+  .mocklabel{font-family:"Spline Sans Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#8A8A8A; margin:18px 0 8px}
+
+  /* Slack */
+  .slack{background:#FFFFFF; color:#1D1C1D; font-family:Lato,"Helvetica Neue",Helvetica,sans-serif; padding:18px; font-size:15px; line-height:1.46}
+  .s-msg{display:flex; gap:10px}
+  .s-av{width:36px; height:36px; border-radius:6px; background:#0E7A70; color:#FFF; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:16px; flex:none}
+  .s-body{flex:1; min-width:0}
+  .s-name{font-weight:900; font-size:15px}
+  .s-app{font-size:10px; font-weight:700; color:#616061; background:#E8E8E8; border-radius:3px; padding:1px 4px; margin:0 6px 0 6px; vertical-align:1px}
+  .s-time{font-size:12px; color:#616061}
+  .s-text{margin:4px 0 0}
+  .s-fields{margin:8px 0 2px}
+  .s-fields p{margin:0 0 6px}
+  .s-div{border:none; border-top:1px solid #DDDDDD; margin:10px 0}
+  .s-ctx{display:flex; gap:6px; color:#616061; font-size:12px}
+  .s-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+  .s-btn{font-family:inherit; font-size:15px; font-weight:700; border-radius:4px; padding:4px 12px; border:1px solid #BABABA; background:#FFF; color:#1D1C1D}
+  .s-btn.pri{background:#007A5A; border-color:#007A5A; color:#FFF}
+  .s-modal{border:1px solid #DDDDDD; border-radius:8px; background:#FFF; box-shadow:0 4px 12px rgba(0,0,0,.06)}
+  .s-modal-h{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #DDDDDD; font-weight:900; font-size:18px}
+  .s-x{color:#616061; font-weight:400; font-size:16px}
+  .s-modal-b{padding:12px 16px 0}
+  .s-label{font-size:15px; font-weight:700; margin:0 0 6px}
+  .s-input{border:1px solid #BABABA; border-radius:4px; padding:8px 10px; font-size:15px; line-height:1.46}
+  .s-modal-f{display:flex; justify-content:flex-end; gap:8px; padding:12px 16px}
+
+  /* Teams */
+  .teams{background:#F5F5F5; color:#242424; font-family:"Segoe UI",system-ui,-apple-system,sans-serif; padding:18px; font-size:14px; line-height:1.43}
+  .t-msg{display:flex; gap:10px}
+  .t-av{width:32px; height:32px; border-radius:50%; background:#5B5FC7; color:#FFF; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:14px; flex:none}
+  .t-body{flex:1; min-width:0}
+  .t-meta{font-size:12px; color:#616161; margin-bottom:4px}
+  .t-meta b{color:#242424; font-weight:600}
+  .t-card{background:#FFF; border:1px solid #E0E0E0; border-radius:6px; padding:14px 16px}
+  .t-title{font-weight:600; font-size:14px; margin:0}
+  .t-sub{color:#616161; font-size:14px; margin:2px 0 0}
+  .t-facts{margin:10px 0 2px}
+  .t-fact{display:flex; gap:12px; padding:3px 0; font-size:14px}
+  .t-fact .fk{font-weight:600; min-width:64px; flex:none}
+  .t-warn{background:#FFF4CE; color:#835B00; border-radius:4px; padding:8px 10px; font-size:12px; margin:10px 0}
+  .t-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+  .t-btn{font-family:inherit; font-size:14px; font-weight:600; border-radius:4px; padding:5px 14px; border:1px solid #D1D1D1; background:#FFF; color:#242424}
+  .t-btn.pri{background:#5B5FC7; border-color:#5B5FC7; color:#FFF}
+  .t-dialog{background:#FFF; border:1px solid #E0E0E0; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.06)}
+  .t-dialog-h{display:flex; justify-content:space-between; align-items:center; padding:14px 20px 6px; font-weight:600; font-size:18px}
+  .t-x{color:#616161; font-weight:400; font-size:16px}
+  .t-dialog-b{padding:6px 20px 0}
+  .t-input{border:1px solid #D1D1D1; border-bottom:2px solid #5B5FC7; border-radius:4px 4px 0 0; padding:8px 10px; font-size:14px; line-height:1.43}
+  .t-dialog-f{display:flex; justify-content:flex-end; gap:8px; padding:14px 20px 16px}
+
+  .tablewrap{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:12px}
+  table{border-collapse:collapse; width:100%; min-width:640px; font-size:13.5px}
+  th{font-family:"Spline Sans Mono",monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); text-align:left; font-weight:500; padding:12px 16px; border-bottom:1px solid var(--line)}
+  td{padding:11px 16px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.choice{font-weight:600; white-space:nowrap}
+  .pill{display:inline-block; font-family:"Spline Sans Mono",monospace; font-size:10.5px; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent-ink); margin-left:6px; vertical-align:1px}
+  .pill.off{background:var(--btn-ghost); color:var(--muted)}
+
+  .divider{border:none; border-top:1px solid var(--line); margin:52px 0 44px}
+  .v2sec summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:13px; margin:0 0 8px; padding:10px 0; user-select:none; -webkit-user-select:none}
+  .v2sec summary::-webkit-details-marker{display:none}
+  .v2sec summary h2{margin:0}
+  .v2sec summary:hover h2{color:var(--accent-ink)}
+  .chev{display:inline-flex; flex:none; transition:transform .15s ease; color:var(--muted); font-size:20px}
+  .v2sec[open] .chev{transform:rotate(90deg)}
+  .v2sec summary .hint{margin-left:auto; font-family:"Spline Sans Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); opacity:0; transition:opacity .15s ease}
+  .v2sec summary:hover .hint{opacity:1}
+  .v2sec .hint::after{content:"expand"}
+  .v2sec[open] .hint::after{content:"collapse"}
+  @media (prefers-reduced-motion: reduce){.chev{transition:none}}
+  h3{font-size:15.5px; font-weight:600; letter-spacing:-.005em; margin:30px 0 4px}
+  .lead{font-size:14px; color:var(--muted); max-width:74ch; margin:0 0 14px}
+  .optrow{display:grid; grid-template-columns:170px minmax(0,1fr); gap:18px; padding:14px 0; border-top:1px solid var(--line); max-width:900px}
+  @media (max-width:640px){.optrow{grid-template-columns:1fr; gap:6px}}
+  .optrow:last-of-type{border-bottom:1px solid var(--line)}
+  .optchip{font-family:"Spline Sans Mono",monospace; font-size:10.5px; letter-spacing:.1em; color:var(--accent-ink)}
+  .optrole{font-size:13.5px; font-weight:600; margin-top:2px}
+  .optrow p{margin:0; font-size:14px}
+  .optrow p em{color:var(--muted)}
+
+  .notes{margin:14px 0 0; padding-left:0; list-style:none; font-size:13px; color:var(--muted); max-width:78ch}
+  .notes li{padding:7px 0 7px 26px; position:relative; border-top:1px solid var(--line)}
+  .notes li::before{content:attr(data-m); position:absolute; left:0; top:8px; font-family:"Spline Sans Mono",monospace; font-size:11px; color:var(--accent-ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">PE-1423 · Flash → live agent handoff</p>
+  <h1>Live Agent Consent Flow</h1>
+  <p class="lede">How the consent / preview solution (Option 2) plays out across the three parties, walked through the VPN example. A recency rule decides whether the card appears at all; the card's three choices produce three different handoffs.</p>
+
+  <h2>V1 — consent first, gated by recency</h2>
+  <p class="sub">Ships first. If there is any recent history, the user confirms what leaves the conversation before it does.</p>
+
+  <figure>
+    <div class="diagram">
+    <svg viewBox="0 0 1200 560" role="img" aria-label="Swimlane flow across User, Flash and Live agent lanes: the user requests a live agent; Flash checks for prior turns in the last X days; if none, chat starts with the current issue only; if yes, Flash shows a consent card and the user's choice — start chat, modify context, or don't share — determines whether the agent joins with the approved summary, an edited summary, or a ticket with no history.">
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/>
+        </marker>
+        <marker id="arwA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+
+      <!-- lanes -->
+      <rect class="lane-band" x="0" y="190" width="1200" height="180"/>
+      <line class="lane-line" x1="0" y1="40" x2="1200" y2="40"/>
+      <line class="lane-line" x1="0" y1="190" x2="1200" y2="190"/>
+      <line class="lane-line" x1="0" y1="370" x2="1200" y2="370"/>
+      <line class="lane-line" x1="0" y1="540" x2="1200" y2="540"/>
+      <text class="lane-name" x="24" y="66">USER</text>
+      <text class="lane-name" x="24" y="216">FLASH</text>
+      <text class="lane-name" x="24" y="232">(ASSISTANT)</text>
+      <text class="lane-name" x="24" y="396">LIVE AGENT</text>
+      <text class="lane-name" x="24" y="412">/ TICKET</text>
+
+      <!-- edges -->
+      <path class="edge" d="M250 150 V280 H293" marker-end="url(#arw)"/>
+      <path class="edge" d="M410 328 V423" marker-end="url(#arw)"/>
+      <text class="el" x="422" y="380">No — nothing</text>
+      <text class="el" x="422" y="394">to confirm</text>
+
+      <path class="edge-a" d="M520 280 H553" marker-end="url(#arwA)"/>
+      <text class="ela" x="524" y="270">Yes</text>
+      <path class="edge-a" d="M650 224 V115 H713" marker-end="url(#arwA)"/>
+      <text class="ela" x="640" y="172" text-anchor="end">shows what</text>
+      <text class="ela" x="640" y="186" text-anchor="end">will be shared</text>
+
+      <path class="edge-a" d="M880 164 V257 H953" marker-end="url(#arwA)"/>
+      <text class="ela" x="888" y="196">Start chat</text>
+      <path class="edge-a" d="M940 90 H983" marker-end="url(#arwA)"/>
+      <text class="ela" x="962" y="78" text-anchor="middle">Modify</text>
+      <path class="edge-a" d="M1080 132 V217" marker-end="url(#arwA)"/>
+      <text class="ela" x="1090" y="168">start chat,</text>
+      <text class="ela" x="1090" y="182">edited</text>
+      <path class="edge-a" d="M1055 290 V423" marker-end="url(#arwA)"/>
+
+      <path class="edge-d" d="M760 164 V293" marker-end="url(#arw)"/>
+      <text class="el" x="770" y="200">Don't share</text>
+      <path class="edge-d" d="M760 364 V423" marker-end="url(#arw)"/>
+
+      <!-- user lane nodes -->
+      <rect class="node" x="170" y="80" width="160" height="70" rx="9"/>
+      <text class="t" x="250" y="108" text-anchor="middle">Requests live agent</text>
+      <text class="sm" x="250" y="128" text-anchor="middle">"VPN issues"</text>
+
+      <rect class="node-key" x="720" y="64" width="220" height="100" rx="9"/>
+      <text class="t" x="830" y="92" text-anchor="middle">Reviews the card</text>
+      <text class="s" x="830" y="114" text-anchor="middle">issue · context summary</text>
+      <text class="s" x="830" y="131" text-anchor="middle">"avoid sensitive info" note</text>
+      <text class="s" x="830" y="150" text-anchor="middle">three choices ↓</text>
+
+      <rect class="node" x="990" y="56" width="180" height="76" rx="9"/>
+      <text class="t" x="1080" y="86" text-anchor="middle">Edits summary</text>
+      <text class="s" x="1080" y="106" text-anchor="middle">plain-text modal</text>
+
+      <!-- flash lane nodes -->
+      <polygon class="node" points="300,280 410,232 520,280 410,328"/>
+      <text class="t" x="410" y="275" text-anchor="middle">Prior turns in</text>
+      <text class="t" x="410" y="293" text-anchor="middle">last X days?</text>
+
+      <rect class="node" x="560" y="224" width="180" height="72" rx="9"/>
+      <text class="t" x="650" y="250" text-anchor="middle">Drafts share preview</text>
+      <text class="s" x="650" y="268" text-anchor="middle">issue + summary</text>
+      <text class="s" x="650" y="283" text-anchor="middle">of prior turns</text>
+
+      <rect class="node" x="960" y="224" width="190" height="66" rx="9"/>
+      <text class="t" x="1055" y="251" text-anchor="middle">Hands off to agent</text>
+      <text class="s" x="1055" y="270" text-anchor="middle">with approved context</text>
+
+      <rect class="node" x="670" y="300" width="180" height="64" rx="9"/>
+      <text class="t" x="760" y="326" text-anchor="middle">Files ticket instead</text>
+      <text class="s" x="760" y="344" text-anchor="middle">no history attached</text>
+
+      <!-- agent lane nodes -->
+      <rect class="node" x="320" y="430" width="180" height="70" rx="9"/>
+      <text class="t" x="410" y="458" text-anchor="middle">Chat starts</text>
+      <text class="s" x="410" y="477" text-anchor="middle">current issue only</text>
+
+      <rect class="node-key" x="955" y="430" width="200" height="76" rx="9"/>
+      <text class="t" x="1055" y="459" text-anchor="middle">Agent joins with context</text>
+      <text class="s" x="1055" y="478" text-anchor="middle">issue + approved summary</text>
+
+      <rect class="node" x="660" y="430" width="200" height="76" rx="9"/>
+      <text class="t" x="760" y="459" text-anchor="middle">Ticket picked up cold</text>
+      <text class="s" x="760" y="478" text-anchor="middle">agent re-asks details</text>
+
+      <!-- step badges -->
+      <circle class="badge" cx="170" cy="80" r="11"/><text class="badge-n" x="170" y="84" text-anchor="middle">1</text>
+      <circle class="badge" cx="410" cy="230" r="11"/><text class="badge-n" x="410" y="234" text-anchor="middle">2</text>
+      <circle class="badge" cx="560" cy="224" r="11"/><text class="badge-n" x="560" y="228" text-anchor="middle">3</text>
+      <circle class="badge" cx="720" cy="64" r="11"/><text class="badge-n" x="720" y="68" text-anchor="middle">4</text>
+      <circle class="badge" cx="955" cy="430" r="11"/><text class="badge-n" x="955" y="434" text-anchor="middle">5</text>
+    </svg>
+    </div>
+    <figcaption>Teal marks the consent path — the card is shown, the user decides, the agent gets exactly what was approved. Dashed edges are the no-context fallback. When there are no prior turns, there's nothing to consent to, so no card is shown.</figcaption>
+  </figure>
+
+  <h2>Step 4 up close — what the user sees</h2>
+  <p class="sub">The same card, built from each platform's native components — Block Kit on Slack, an Adaptive Card in Teams. Grey tags name the component each block maps to.</p>
+
+  <div class="platforms">
+
+    <!-- TEAMS -->
+    <div class="platwrap">
+    <div class="plat">
+      <div class="plat-h"><span class="pname">Microsoft Teams</span><span class="pkit">Adaptive Card v1.5</span></div>
+      <div class="teams">
+        <div class="t-msg">
+          <div class="t-av">F</div>
+          <div class="t-body">
+            <p class="t-meta"><b>Flash</b> &nbsp;9:41 AM</p>
+            <div class="t-card">
+              <div class="blk">
+                <div>
+                  <p class="t-title">A live agent is available for your VPN issue.</p>
+                  <p class="t-sub">Here's what we'll share with them:</p>
+                </div>
+                <span class="anno">TextBlock</span>
+              </div>
+              <div class="blk">
+                <div class="t-facts">
+                  <div class="t-fact"><span class="fk">Issue</span><span>VPN — can't connect from home network</span></div>
+                  <div class="t-fact"><span class="fk">Context</span><span>Tried GlobalConnect from home Wi-Fi, error 809, already restarted the client and rebooted once.</span></div>
+                </div>
+                <span class="anno">FactSet</span>
+              </div>
+              <div class="blk">
+                <div class="t-warn">⚠ Please don't include sensitive information unless it's needed to resolve this issue.</div>
+                <span class="anno">Container · warning</span>
+              </div>
+              <div class="blk">
+                <div class="t-actions">
+                  <span class="t-btn pri">Yes, start chat</span>
+                  <span class="t-btn">Modify context</span>
+                  <span class="t-btn">No — just file a ticket</span>
+                </div>
+                <span class="anno">ActionSet · Action.Submit</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="mocklabel">On "Modify context" — dialog (task module)</p>
+        <div class="t-dialog">
+          <div class="t-dialog-h"><span>Modify context</span><span class="t-x">✕</span></div>
+          <div class="t-dialog-b">
+            <div class="blk">
+              <div class="t-input">Tried GlobalConnect from home Wi-Fi, error 809, restarted client and rebooted.<br><span class="strike">Earlier asked about a leave-request issue with my manager.</span></div>
+              <span class="anno">Input.Text · isMultiline</span>
+            </div>
+          </div>
+          <div class="t-dialog-f">
+            <span class="t-btn">Cancel</span>
+            <span class="t-btn pri">Save &amp; start chat</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- SLACK -->
+    <div class="platwrap">
+    <div class="plat">
+      <div class="plat-h"><span class="pname">Slack</span><span class="pkit">Block Kit</span></div>
+      <div class="slack">
+        <div class="s-msg">
+          <div class="s-av">⚡</div>
+          <div class="s-body">
+            <div><span class="s-name">Flash</span><span class="s-app">APP</span><span class="s-time">9:41 AM</span></div>
+            <div class="blk">
+              <p class="s-text">A live agent is available for your VPN issue. Here's what we'll share with them:</p>
+              <span class="anno">section · mrkdwn</span>
+            </div>
+            <div class="blk">
+              <div class="s-fields">
+                <p><b>Issue:</b> VPN — can't connect from home network</p>
+                <p><b>Context:</b> Tried GlobalConnect from home Wi-Fi, error 809, already restarted the client and rebooted once.</p>
+              </div>
+              <span class="anno">section · fields</span>
+            </div>
+            <hr class="s-div">
+            <div class="blk">
+              <div class="s-ctx"><span>⚠️</span><span>Please don't include sensitive information unless it's needed to resolve this issue.</span></div>
+              <span class="anno">context</span>
+            </div>
+            <div class="blk">
+              <div class="s-actions">
+                <span class="s-btn pri">Yes, start chat</span>
+                <span class="s-btn">Modify context</span>
+                <span class="s-btn">No — just file a ticket</span>
+              </div>
+              <span class="anno">actions · button</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="mocklabel">On "Modify context" — modal</p>
+        <div class="s-modal">
+          <div class="s-modal-h"><span>Modify context</span><span class="s-x">✕</span></div>
+          <div class="s-modal-b">
+            <p class="s-label">Context to share with the agent</p>
+            <div class="blk">
+              <div class="s-input">Tried GlobalConnect from home Wi-Fi, error 809, restarted client and rebooted.<br><span class="strike">Earlier asked about a leave-request issue with my manager.</span></div>
+              <span class="anno">plain_text_input · multiline</span>
+            </div>
+          </div>
+          <div class="s-modal-f">
+            <span class="s-btn">Cancel</span>
+            <span class="s-btn pri">Save &amp; start chat</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+  </div>
+
+  <h2>What reaches the agent, per path</h2>
+  <div class="tablewrap">
+    <table>
+      <tr><th>Path</th><th>What happens</th><th>What the agent sees</th></tr>
+      <tr>
+        <td class="choice">No recent turns<span class="pill off">no card</span></td>
+        <td>Chat starts immediately — no confirmation step</td>
+        <td>Current issue only</td>
+      </tr>
+      <tr>
+        <td class="choice">Yes, start chat<span class="pill">consented</span></td>
+        <td>Live chat opens with the previewed context as-is</td>
+        <td>Issue + the summary the user approved</td>
+      </tr>
+      <tr>
+        <td class="choice">Modify context<span class="pill">consented</span></td>
+        <td>User edits the summary in a plain-text modal, then chat opens</td>
+        <td>Issue + the user-edited summary</td>
+      </tr>
+      <tr>
+        <td class="choice">No, file ticket<span class="pill off">no context</span></td>
+        <td>Ticket is created without conversation history</td>
+        <td>Issue only — agent starts cold and re-asks details</td>
+      </tr>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <details class="v2sec" open>
+  <summary><span class="chev">▸</span><h2>Ideal state — V2, the layered end-state</h2><span class="hint"></span></summary>
+  <p class="sub">From the proposal's recommendation: context is scoped to the current issue by default (Option 1), a sensitivity check decides when the card appears (Option 2), and admins set defaults by field and PII type (Option 3). The card becomes rare — and stays meaningful.</p>
+
+  <figure>
+    <div class="diagram">
+    <svg viewBox="0 0 1200 580" role="img" aria-label="V2 swimlane flow: the user requests a live agent; Flash scopes context to the current issue; a gate combining a sensitivity check and admin policy decides — when safe, the agent joins silently with the scoped summary; when risky or when policy says always ask, the consent card from V1 appears and the agent joins with whatever the user approves or edits.">
+      <defs>
+        <marker id="arw2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/>
+        </marker>
+        <marker id="arwA2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+
+      <!-- lanes -->
+      <rect class="lane-band" x="0" y="180" width="1200" height="210"/>
+      <line class="lane-line" x1="0" y1="40" x2="1200" y2="40"/>
+      <line class="lane-line" x1="0" y1="180" x2="1200" y2="180"/>
+      <line class="lane-line" x1="0" y1="390" x2="1200" y2="390"/>
+      <line class="lane-line" x1="0" y1="540" x2="1200" y2="540"/>
+      <text class="lane-name" x="24" y="66">USER</text>
+      <text class="lane-name" x="24" y="206">FLASH</text>
+      <text class="lane-name" x="24" y="222">(ASSISTANT)</text>
+      <text class="lane-name" x="24" y="416">LIVE AGENT</text>
+      <text class="lane-name" x="24" y="432">/ TICKET</text>
+
+      <!-- edges -->
+      <path class="edge-a" d="M250 146 V250 H294" marker-end="url(#arwA2)"/>
+      <path class="edge-a" d="M490 250 H524" marker-end="url(#arwA2)"/>
+      <path class="edge-a" d="M750 250 H770 V434" marker-end="url(#arwA2)"/>
+      <text class="ela" x="780" y="320">safe — no card,</text>
+      <text class="ela" x="780" y="334">no friction</text>
+      <path class="edge-d" d="M640 322 V302" marker-end="url(#arw2)"/>
+      <path class="edge" d="M640 204 V110 H854" marker-end="url(#arw2)"/>
+      <text class="el" x="652" y="150">risky, or</text>
+      <text class="el" x="652" y="164">always-ask</text>
+      <path class="edge" d="M970 156 V434" marker-end="url(#arw2)"/>
+      <text class="el" x="980" y="300">approves or edits</text>
+
+      <!-- user lane -->
+      <rect class="node" x="170" y="76" width="160" height="70" rx="9"/>
+      <text class="t" x="250" y="104" text-anchor="middle">Requests live agent</text>
+      <text class="sm" x="250" y="124" text-anchor="middle">"VPN issues"</text>
+
+      <rect class="node" x="860" y="64" width="220" height="92" rx="9"/>
+      <text class="t" x="970" y="92" text-anchor="middle">Consent card</text>
+      <text class="s" x="970" y="112" text-anchor="middle">same card &amp; choices</text>
+      <text class="s" x="970" y="128" text-anchor="middle">as shown above</text>
+      <text class="opt" x="970" y="146" text-anchor="middle">OPTION 2</text>
+
+      <!-- flash lane -->
+      <rect class="node" x="300" y="212" width="190" height="76" rx="9"/>
+      <text class="t" x="395" y="238" text-anchor="middle">Scopes context to issue</text>
+      <text class="s" x="395" y="256" text-anchor="middle">summary of the current</text>
+      <text class="s" x="395" y="270" text-anchor="middle">request only</text>
+      <text class="opt" x="395" y="283" text-anchor="middle">OPTION 1</text>
+
+      <polygon class="node" points="530,250 640,204 750,250 640,296"/>
+      <text class="t" x="640" y="245" text-anchor="middle">Risky, or policy</text>
+      <text class="t" x="640" y="263" text-anchor="middle">says ask?</text>
+
+      <rect class="node-cfg" x="540" y="322" width="200" height="54" rx="9"/>
+      <text class="t" x="640" y="341" text-anchor="middle">Admin policy</text>
+      <text class="s" x="640" y="357" text-anchor="middle">always ask · if risky · never</text>
+      <text class="opt" x="640" y="371" text-anchor="middle">OPTION 3</text>
+
+      <!-- agent lane -->
+      <rect class="node-key" x="685" y="440" width="170" height="72" rx="9"/>
+      <text class="t" x="770" y="466" text-anchor="middle">Agent joins silently</text>
+      <text class="s" x="770" y="485" text-anchor="middle">issue + scoped summary</text>
+
+      <rect class="node" x="875" y="440" width="210" height="72" rx="9"/>
+      <text class="t" x="980" y="466" text-anchor="middle">Joins with approved context</text>
+      <text class="s" x="980" y="485" text-anchor="middle">or edited · or none (ticket)</text>
+    </svg>
+    </div>
+    <figcaption>V2 flips the default: teal is now the silent path — context is trimmed to the current issue and shipped without friction when it scores safe. The V1 card survives as the exception, summoned only by the sensitivity check or by admin policy. "Never send" remains a policy option and skips context entirely.</figcaption>
+  </figure>
+
+  <h3>How the layers fit together</h3>
+  <p class="lead">No single option is enough on its own: smart filtering can guess wrong, a popup shown every time gets ignored, and admin rules can't tell what's actually inside a conversation. So each option gets one job — and each one backs up another.</p>
+
+  <div class="optrow">
+    <div><div class="optchip">OPTION 1</div><div class="optrole">The default layer<br>topic-scoped context</div></div>
+    <p>Every handoff sends only a short summary of the current issue — the VPN request never includes the earlier HR conversation. No extra clicks, cleaner context; but it's an AI guess, so it's never trusted on its own.</p>
+  </div>
+  <div class="optrow">
+    <div><div class="optchip">OPTION 2</div><div class="optrole">The safety net<br>consent / preview</div></div>
+    <p>Flash checks whether anything in the outgoing summary looks sensitive. Only then — or when admin rules require it — does the confirmation card appear. The user is the only one who knows what's private <em>to them</em>, and because the card shows up rarely, people actually read it.</p>
+  </div>
+  <div class="optrow">
+    <div><div class="optchip">OPTION 3</div><div class="optrole">The control plane<br>admin policy</div></div>
+    <p>Admins set a rule for each type of field and PII: always share it, ask the user first, or never send it. Simple rules that can be checked and audited — the rules decide <em>when</em> info can move; the other layers decide <em>what</em> gets sent.</p>
+  </div>
+  <h3>How they work together — one handoff through the stack</h3>
+  <p class="lead" style="margin-top:8px">The steps run in order, and each one can only remove information — never add it. First, Flash trims the conversation to a summary of the current issue (Option 1) — that's the most that can ever be shared. Next, the admin rules (Option 3) remove anything marked "never send" and flag anything marked "ask first". Finally, if what's left still looks sensitive — or the rules require it — the card appears (Option 2) and the user decides. The agent only sees what made it through all three.</p>
+  <p class="lead">Each step also catches the mistakes of the one before it: if the summary accidentally includes an HR line, the sensitivity check flags it and the card shows it to the user; if the check misses it too, the "never send" rules still block those fields. That's why the card can stay rare and still be safe — and the same steps run before both tickets and live-agent chats.</p>
+
+  <h3>V1 → V2 at a glance</h3>
+  <div class="tablewrap" style="margin-top:10px">
+    <table>
+      <tr><th></th><th>V1 — recency-gated</th><th>V2 — risk-gated (ideal)</th></tr>
+      <tr>
+        <td class="choice">Context attached</td>
+        <td>Summary of all recent turns</td>
+        <td>Current issue only — topic-scoped summary</td>
+      </tr>
+      <tr>
+        <td class="choice">When the card appears</td>
+        <td>Any prior turns in the last X days</td>
+        <td>Only when the sensitivity check flags the outgoing context, or policy says always ask</td>
+      </tr>
+      <tr>
+        <td class="choice">Admin control</td>
+        <td>History on / off, ask on transfer</td>
+        <td>By field &amp; PII type: always share · ask first · never send</td>
+      </tr>
+      <tr>
+        <td class="choice">Card fatigue</td>
+        <td>Card on every handoff with history — blind-approve risk</td>
+        <td>Rare by design — appears only when it matters</td>
+      </tr>
+    </table>
+  </div>
+  </details>
+
+</div>
+</body>
+</html>
